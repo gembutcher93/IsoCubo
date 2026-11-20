@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Isocubo — geometrie isometriche</title>
+<style>
+:root{--bg:#121214;--pn:#1b1b1f;--ln:#2c2c33;--tx:#e9e6df;--mu:#8d8a84;--ac:#f2b544;--ac2:#4fd1c5}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font:14px/1.35 -apple-system,system-ui,Segoe UI,Roboto,sans-serif;overflow:hidden}
+header{height:52px;display:flex;align-items:center;gap:10px;padding:0 12px;border-bottom:1px solid var(--ln);background:var(--pn)}
+header h1{font-size:16px;margin:0 8px 0 0;letter-spacing:.5px}
+header h1 b{color:var(--ac)}
+.tabs{display:flex;gap:6px}
+.tab{padding:8px 14px;border-radius:8px;border:1px solid var(--ln);background:transparent;color:var(--tx);font-weight:600;font-size:14px}
+.tab.on{background:var(--ac);color:#111;border-color:var(--ac)}
+main{display:flex;height:calc(100% - 52px)}
+#stage{flex:1;position:relative;min-width:0;min-height:0}
+#cv{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block}
+#hint{position:absolute;left:10px;bottom:10px;right:10px;font-size:12px;color:var(--mu);pointer-events:none;text-shadow:0 1px 2px #000}
+aside{width:340px;overflow-y:auto;background:var(--pn);border-left:1px solid var(--ln);padding:10px 12px 40px;-webkit-overflow-scrolling:touch}
+@media (orientation:portrait){main{flex-direction:column}#stage{flex:0 0 56%}aside{width:auto;flex:1;border-left:0;border-top:1px solid var(--ln)}}
+h3{margin:14px 0 8px;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--ac2)}
+.row{display:flex;align-items:center;gap:8px;margin:7px 0}
+.row label{flex:0 0 118px;font-size:13px;color:#cfccc5}
+.row input[type=range]{flex:1;accent-color:var(--ac);height:28px}
+.row .v{flex:0 0 44px;text-align:right;font-variant-numeric:tabular-nums;color:var(--mu);font-size:12px}
+.seg{display:flex;border:1px solid var(--ln);border-radius:8px;overflow:hidden;margin:6px 0}
+.seg button{flex:1;padding:9px 4px;background:transparent;color:var(--tx);border:0;border-right:1px solid var(--ln);font-size:13px}
+.seg button:last-child{border-right:0}
+.seg button.on{background:#3a3220;color:var(--ac);font-weight:700}
+.tg{display:flex;align-items:center;justify-content:space-between;margin:6px 0;padding:6px 0;font-size:13px;color:#cfccc5}
+.sw{width:44px;height:26px;border-radius:13px;background:#3a3a42;position:relative;border:0;flex:0 0 44px}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#bbb;transition:.15s}
+.sw.on{background:var(--ac)}.sw.on::after{left:21px;background:#111}
+.btns{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.b{padding:9px 12px;border-radius:8px;border:1px solid var(--ln);background:#25252b;color:var(--tx);font-size:13px}
+.b.pri{background:var(--ac);color:#111;border-color:var(--ac);font-weight:700}
+.b.wide{flex:1 1 100%}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:7px 10px;border-radius:16px;border:1px solid var(--ln);background:#25252b;color:var(--tx);font-size:12px;display:flex;align-items:center;gap:6px}
+.chip i{font-style:normal;color:var(--mu);padding-left:4px}
+.note{font-size:12px;color:var(--mu);margin:4px 0 8px}
+.hide{display:none!important}
+#ov{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:9;padding:16px}
+#ov.on{display:flex}
+#ov .img{max-width:92vw;max-height:70vh;background:repeating-conic-gradient(#ddd 0 25%,#fff 0 50%) 0 0/20px 20px;border-radius:6px}
+#ov img{display:block;max-width:92vw;max-height:70vh}
+</style>
+</head>
+<body>
+<header>
+  <h1>ISO<b>CUBO</b></h1>
+  <div class="tabs">
+    <button class="tab on" data-m="mod">1 · Modulo</button>
+    <button class="tab" data-m="comp">2 · Composizione</button>
+  </div>
+</header>
+<main>
+  <div id="stage"><canvas id="cv"></canvas><div id="hint"></div></div>
+  <aside id="panel">
+    <div id="pMod">
+      <h3>Costruisci il modulo</h3>
+      <div class="seg" data-k="tool"><button data-v="add">＋ Aggiungi cubo</button><button data-v="del">－ Togli cubo</button></div>
+      <div class="btns"><button class="b" id="bUndo">↶ Annulla</button><button class="b" id="bClear">Svuota</button></div>
+      <p class="note">Tocca una faccia per attaccarci un cubo sopra. Tocca la griglia per appoggiarne uno a terra. In modalità Togli tocca il cubo da eliminare.</p>
+      <h3>Moduli pronti</h3>
+      <div class="chips" id="presets"></div>
+      <h3>La tua libreria</h3>
+      <div class="chips" id="lib"></div>
+      <div class="btns"><input id="libName" placeholder="Nome modulo" style="flex:1;min-width:0;padding:9px;border-radius:8px;border:1px solid var(--ln);background:#25252b;color:var(--tx);font-size:14px"><button class="b" id="bSave">💾 Salva</button></div>
+    </div>
+    <div id="pComp" class="hide">
+      <h3>Tipo di composizione</h3>
+      <div class="seg" data-k="cm"><button data-v="path">Percorso</button><button data-v="spiral">Spirale</button><button data-v="rings">Anelli</button></div>
+      <div id="gPath">
+        <div class="seg" data-k="pin"><button data-v="pts">Punti (spline)</button><button data-v="free">Mano libera</button></div>
+        <div class="btns"><button class="b" id="bPop">Togli ultimo punto</button><button class="b" id="bPathClr">Cancella percorso</button></div>
+      </div>
+      <div id="gSpiral"></div>
+      <div id="gRings"></div>
+      <div id="gGrow"><h3>Crescita da A a B</h3></div>
+      <h3>Orientamento</h3>
+      <div id="gOrient"></div>
+    </div>
+    <h3>Stile</h3>
+    <div id="gStyle"></div>
+    <h3>Esporta PNG trasparente</h3>
+    <div class="seg" data-k="exp"><button data-v="2048">2048</button><button data-v="3072">3072</button><button data-v="4000">4000 px</button></div>
+    <div id="gExp"></div>
+    <div class="btns">
+      <button class="b pri wide" id="bExpComp">Esporta composizione</button>
+      <button class="b wide" id="bExpMod">Esporta solo il modulo</button>
+    </div>
+  </aside>
+</main>
+<div id="ov"><div class="img"><img id="ovImg" alt=""></div>
+  <div class="note" style="color:#ccc;text-align:center">Tieni premuto sull'immagine per salvarla in Foto o copiarla, oppure scaricala come file.</div>
+  <div class="btns"><a class="b pri" id="ovDl" download="isocubo.png">Scarica PNG</a><button class="b" id="ovX">Chiudi</button></div>
+</div>
+<script>
+(()=>{
+const C30=Math.cos(Math.PI/6), TAU=Math.PI*2;
+const K=(x,y,z)=>x+','+y+','+z;
+const P=(x,y,z)=>[(x-y)*C30,(x+y)*0.5-z];
+
+/* ---------- stato ---------- */
+const st={
+  mode:'mod', tool:'add', cm:'path', pin:'pts',
+  n:14, s0:40, s1:170, g:1, prop:true, auto:true, gap:1,
+  turns:2.5, r0:30, r1:430, spLog:true, cw:true, th0:0, spAuto:true, spK:0.4,
+  rings:9, rpm:18, rr0:60, rstep:0.85, rfill:1.25, twist:0, ralt:true,
+  follow:false, rFollow:true, rot:0, flip:false, order:'path',
+  fill:true, tones:false, allEdges:false, lightR:false, guides:true,
+  lw:2, fixedLw:false, exp:'3072', crop:true
+};
+let vox=new Set([[0,0,0],[0,0,1],[1,0,0],[0,1,0]].map(a=>K(...a)));
+let undo=[];
+let path=[{x:140,y:830},{x:330,y:560},{x:600,y:520},{x:860,y:220}];
+let center={x:500,y:500};
+
+/* ---------- costruzione modulo ---------- */
+function build(vs,allEdges){
+  const H=(x,y,z)=>vs.has(K(x,y,z));
+  const cubes=[...vs].map(k=>k.split(',').map(Number)).sort((a,b)=>(a[0]+a[1]+a[2])-(b[0]+b[1]+b[2]));
+  const faces=[];
+  function mk(t,q,dirs,n,c){
+    const pts=q.map(p=>P(p[0],p[1],p[2])), edges=[];
+    for(let i=0;i<4;i++){const d=dirs[i];
+      const cont=H(c[0]+d[0],c[1]+d[1],c[2]+d[2])&&!H(c[0]+d[0]+n[0],c[1]+d[1]+n[1],c[2]+d[2]+n[2]);
+      if(allEdges||!cont)edges.push(i);}
+    return {t,pts,edges,c,n};
+  }
+  for(const [x,y,z] of cubes){
+    if(!H(x,y+1,z))faces.push(mk('l',[[x,y+1,z],[x+1,y+1,z],[x+1,y+1,z+1],[x,y+1,z+1]],[[0,0,-1],[1,0,0],[0,0,1],[-1,0,0]],[0,1,0],[x,y,z]));
+    if(!H(x+1,y,z))faces.push(mk('r',[[x+1,y,z],[x+1,y+1,z],[x+1,y+1,z+1],[x+1,y,z+1]],[[0,0,-1],[0,1,0],[0,0,1],[0,-1,0]],[1,0,0],[x,y,z]));
+    if(!H(x,y,z+1))faces.push(mk('t',[[x,y,z+1],[x+1,y,z+1],[x+1,y+1,z+1],[x,y+1,z+1]],[[0,-1,0],[1,0,0],[0,1,0],[-1,0,0]],[0,0,1],[x,y,z]));
+  }
+  let a=1e9,b=1e9,c=-1e9,d=-1e9;
+  for(const f of faces)for(const p of f.pts){a=Math.min(a,p[0]);b=Math.min(b,p[1]);c=Math.max(c,p[0]);d=Math.max(d,p[1]);}
+  if(!faces.length){a=b=0;c=d=1;}
+  return {faces,cx:(a+c)/2,cy:(b+d)/2,size:Math.max(c-a,d-b)||1};
+}
+function toneOf(t){
+  if(t==='t')return '#ffffff';
+  const dark='#151515', mid='#8a8a8a';
+  if(t==='r')return st.lightR?mid:dark;
+  return st.lightR?dark:mid;
+}
+function drawMod(ctx,M,o){
+  ctx.lineCap='round';ctx.lineJoin='round';
+  for(const f of M.faces){
+    const p=f.pts;
+    if(o.fill){
+      ctx.beginPath();ctx.moveTo(p[0][0],p[0][1]);for(let i=1;i<4;i++)ctx.lineTo(p[i][0],p[i][1]);ctx.closePath();
+      const col=o.tones?toneOf(f.t):'#ffffff';
+      ctx.fillStyle=col;ctx.fill();
+      if(o.seam){ctx.strokeStyle=col;ctx.lineWidth=o.seam;ctx.stroke();}
+    }
+    if(f.edges.length){
+      ctx.beginPath();
+      for(const i of f.edges){const a=p[i],b=p[(i+1)%4];ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);}
+      ctx.strokeStyle=o.ink||'#000';ctx.lineWidth=o.lw;ctx.stroke();
+    }
+  }
+}
+
+/* ---------- percorsi ---------- */
+function catmull(pts){
+  if(pts.length<2)return pts.slice();
+  const out=[];
+  for(let i=0;i<pts.length-1;i++){
+    const p0=pts[i-1]||pts[i],p1=pts[i],p2=pts[i+1],p3=pts[i+2]||p2;
+    for(let j=0;j<16;j++){const t=j/16,t2=t*t,t3=t2*t;
+      out.push({x:.5*(2*p1.x+(-p0.x+p2.x)*t+(2*p0.x-5*p1.x+4*p2.x-p3.x)*t2+(-p0.x+3*p1.x-3*p2.x+p3.x)*t3),
+                y:.5*(2*p1.y+(-p0.y+p2.y)*t+(2*p0.y-5*p1.y+4*p2.y-p3.y)*t2+(-p0.y+3*p1.y-3*p2.y+p3.y)*t3)});}
+  }
+  out.push(pts[pts.length-1]);return out;
+}
+function spiralPl(){
+  const out=[],n=800,r0=Math.max(1,st.r0),r1=Math.max(r0+1,st.r1);
+  for(let i=0;i<=n;i++){const t=i/n;
+    const th=st.th0*Math.PI/180+st.turns*TAU*t*(st.cw?1:-1);
+    const r=st.spLog?r0*Math.pow(r1/r0,t):r0+(r1-r0)*t;
+    out.push({x:center.x+r*Math.cos(th),y:center.y+r*Math.sin(th)});}
+  return out;
+}
+function cumLen(pl){const c=[0];for(let i=1;i<pl.length;i++)c.push(c[i-1]+Math.hypot(pl[i].x-pl[i-1].x,pl[i].y-pl[i-1].y));return c;}
+function sampleAt(pl,cum,d){
+  let i=1;while(i<pl.length-1&&cum[i]<d)i++;
+  const a=pl[i-1],b=pl[i],seg=(cum[i]-cum[i-1])||1,t=Math.min(1,Math.max(0,(d-cum[i-1])/seg));
+  return {x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,a:Math.atan2(b.y-a.y,b.x-a.x)};
+}
+function sizes(N){const a=[];for(let i=0;i<N;i++){const t=N>1?i/(N-1):0;a.push(st.s0+(st.s1-st.s0)*Math.pow(t,st.g));}return a;}
+function distribute(pl,sizeFn){
+  if(pl.length<2)return [];
+  const cum=cumLen(pl),L=cum[cum.length-1];if(L<1)return [];
+  const r=st.rot*Math.PI/180;
+  if(st.auto||sizeFn){
+    const out=[];let d=0;
+    while(d<=L&&out.length<3000){
+      const p=sampleAt(pl,cum,d);
+      const s=sizeFn?sizeFn(p,d/L):st.s0+(st.s1-st.s0)*Math.pow(d/L,st.g);
+      out.push({x:p.x,y:p.y,s,a:(st.follow?p.a:0)+r});
+      d+=Math.max(1,s*st.gap);
+    }
+    return out;
+  }
+  const N=st.n,S=sizes(N);let ds;
+  if(st.prop&&N>1){const d=[0];for(let i=1;i<N;i++)d.push(d[i-1]+(S[i-1]+S[i])/2);const f=L/d[N-1];ds=d.map(v=>v*f);}
+  else ds=S.map((_,i)=>N>1?L*i/(N-1):0);
+  return S.map((s,i)=>{const p=sampleAt(pl,cum,ds[i]);return {x:p.x,y:p.y,s,a:(st.follow?p.a:0)+r};});
+}
+function ringsLayout(){
+  const out=[],M=st.rpm,slot=TAU/M,r0=st.rot*Math.PI/180;let r=st.rr0;
+  for(let k=0;k<st.rings;k++){
+    const s=st.rfill*r*slot,off=(st.ralt&&k%2?slot/2:0)+k*st.twist*Math.PI/180;
+    for(let j=0;j<M;j++){const th=j*slot+off;
+      out.push({x:center.x+r*Math.cos(th),y:center.y+r*Math.sin(th),s,a:(st.rFollow?th+Math.PI/2:0)+r0});}
+    r*=1+slot*st.rstep;
+  }
+  return out;
+}
+function layout(){
+  let L;
+  if(st.cm==='path')L=distribute(catmull(path));
+  else if(st.cm==='spiral')L=distribute(spiralPl(),st.spAuto?(p=>Math.max(2,st.spK*Math.hypot(p.x-center.x,p.y-center.y))):null);
+  else L=ringsLayout();
+  if(st.order==='big')L.sort((a,b)=>a.s-b.s);
+  else if(st.order==='small')L.sort((a,b)=>b.s-a.s);
+  return L;
+}
+function renderComp(ctx,px){
+  const M=build(vox,st.allEdges);if(!M.faces.length)return;
+  for(const it of layout()){
+    if(it.s<=0.5)continue;
+    const k=it.s/M.size;
+    ctx.save();ctx.translate(it.x,it.y);ctx.rotate(it.a);ctx.scale(st.flip?-k:k,k);ctx.translate(-M.cx,-M.cy);
+    const lw=st.fixedLw?st.lw/k:st.lw*(it.s/100)/k;
+    drawMod(ctx,M,{fill:st.fill,tones:st.tones,lw,seam:1.2/(px*k)});
+    ctx.restore();
+  }
+}
+
+/* ---------- vista ---------- */
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d'),hint=document.getElementById('hint');
+let W=0,H=0,dpr=1,raf=0;
+function resize(){const r=cv.getBoundingClientRect();dpr=window.devicePixelRatio||1;W=r.width;H=r.height;cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);draw();}
+function draw(){if(raf)return;raf=requestAnimationFrame(()=>{raf=0;paint();});}
+function sheetView(){const vs=Math.min(W,H)*0.96/1000;return {vs,ox:(W-1000*vs)/2,oy:(H-1000*vs)/2};}
+function edView(){const cell=Math.min(W,H)/13;return {cell,ex:W/2,ey:H*0.62};}
+let edM=null;
+function paint(){
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#0d0d0f';ctx.fillRect(0,0,W,H);
+  if(st.mode==='mod'){
+    const {cell,ex,ey}=edView();
+    ctx.save();ctx.translate(ex,ey);ctx.scale(cell,cell);
+    const R=5;ctx.lineWidth=1/cell;ctx.strokeStyle='#33333b';ctx.beginPath();
+    for(let i=-R;i<=R+1;i++){let a=P(i,-R,0),b=P(i,R+1,0);ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);a=P(-R,i,0);b=P(R+1,i,0);ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);}
+    ctx.stroke();
+    edM=build(vox,st.allEdges);
+    drawMod(ctx,edM,{fill:true,tones:true,lw:2.2/cell,seam:1/cell,ink:'#000'});
+    ctx.restore();
+    hint.textContent=vox.size+' cubi · '+(st.tool==='add'?'tocca per aggiungere':'tocca per togliere');
+  }else{
+    const {vs,ox,oy}=sheetView();
+    ctx.save();ctx.translate(ox,oy);ctx.scale(vs,vs);
+    ctx.fillStyle='#efece6';ctx.fillRect(0,0,1000,1000);ctx.save();ctx.beginPath();ctx.rect(0,0,1000,1000);ctx.clip();
+    renderComp(ctx,vs*dpr);ctx.restore();
+    if(st.guides){
+      ctx.lineWidth=1.5/vs;ctx.strokeStyle='rgba(230,60,60,.8)';ctx.setLineDash([6/vs,5/vs]);
+      if(st.cm==='path'){const pl=catmull(path);if(pl.length>1){ctx.beginPath();ctx.moveTo(pl[0].x,pl[0].y);for(const p of pl)ctx.lineTo(p.x,p.y);ctx.stroke();}
+        ctx.setLineDash([]);if(st.pin==='pts')path.forEach((p,i)=>{ctx.beginPath();ctx.arc(p.x,p.y,(i===0?9:7)/vs,0,TAU);ctx.fillStyle=i===0?'#e23c3c':'rgba(230,60,60,.85)';ctx.fill();});
+        if(path.length){ctx.fillStyle='#e23c3c';ctx.font=(13/vs)+'px sans-serif';ctx.fillText('A',path[0].x+10/vs,path[0].y-10/vs);const l=path[path.length-1];if(path.length>1)ctx.fillText('B',l.x+10/vs,l.y-10/vs);}
+      }else{
+        if(st.cm==='spiral'){const pl=spiralPl();ctx.beginPath();ctx.moveTo(pl[0].x,pl[0].y);for(const p of pl)ctx.lineTo(p.x,p.y);ctx.stroke();}
+        ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(center.x-14/vs,center.y);ctx.lineTo(center.x+14/vs,center.y);ctx.moveTo(center.x,center.y-14/vs);ctx.lineTo(center.x,center.y+14/vs);ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    }
+    ctx.restore();
+    const n=layout().length;
+    hint.textContent=n+' moduli · '+(st.cm==='path'?(st.pin==='pts'?'tocca per aggiungere punti, trascinali per spostarli':'disegna il percorso col dito o la penna'):'trascina per spostare il centro');
+  }
+}
+
+/* ---------- input ---------- */
+const pos=e=>{const r=cv.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top};};
+const toSheet=p=>{const {vs,ox,oy}=sheetView();return {x:(p.x-ox)/vs,y:(p.y-oy)/vs};};
+function pip(pt,poly){let c=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const a=poly[i],b=poly[j];if((a[1]>pt[1])!==(b[1]>pt[1])&&pt[0]<(b[0]-a[0])*(pt[1]-a[1])/(b[1]-a[1])+a[0])c=!c;}return c;}
+function inB(x,y,z){return x>=-6&&x<=12&&y>=-6&&y<=12&&z>=0&&z<=14;}
+function pushUndo(){undo.push([...vox]);if(undo.length>80)undo.shift();}
+function edTap(p){
+  const {cell,ex,ey}=edView();const m=[(p.x-ex)/cell,(p.y-ey)/cell];
+  let hit=null;if(edM)for(let i=edM.faces.length-1;i>=0;i--)if(pip(m,edM.faces[i].pts)){hit=edM.faces[i];break;}
+  if(st.tool==='add'){
+    let c;
+    if(hit)c=[hit.c[0]+hit.n[0],hit.c[1]+hit.n[1],hit.c[2]+hit.n[2]];
+    else{const a=m[0]/C30,b=2*m[1];c=[Math.floor((a+b)/2),Math.floor((b-a)/2),0];}
+    if(!inB(...c)||vox.has(K(...c)))return;
+    pushUndo();vox.add(K(...c));
+  }else if(hit){pushUndo();vox.delete(K(...hit.c));}
+  draw();
+}
+let down=null,drag=-1,freeing=false,movingC=false;
+cv.addEventListener('pointerdown',e=>{
+  cv.setPointerCapture(e.pointerId);const p=pos(e);down={x:p.x,y:p.y,moved:false};
+  if(st.mode!=='comp')return;
+  const s=toSheet(p),{vs}=sheetView();
+  if(st.cm==='path'){
+    if(st.pin==='pts'){drag=-1;let best=24/vs;path.forEach((q,i)=>{const d=Math.hypot(q.x-s.x,q.y-s.y);if(d<best){best=d;drag=i;}});}
+    else{path=[s];freeing=true;draw();}
+  }else{movingC=true;}
+});
+cv.addEventListener('pointermove',e=>{
+  if(!down)return;const p=pos(e);
+  if(Math.hypot(p.x-down.x,p.y-down.y)>6)down.moved=true;
+  if(st.mode!=='comp')return;
+  const s=toSheet(p);
+  if(st.cm==='path'){
+    if(st.pin==='pts'&&drag>=0&&down.moved){path[drag]=s;draw();}
+    else if(freeing){const l=path[path.length-1];if(Math.hypot(s.x-l.x,s.y-l.y)>14){path.push(s);draw();}}
+  }else if(movingC&&down.moved){center=s;draw();}
+});
+cv.addEventListener('pointerup',e=>{
+  if(!down)return;const p=pos(e);
+  if(st.mode==='mod'){if(!down.moved)edTap(p);}
+  else{
+    const s=toSheet(p);
+    if(st.cm==='path'){
+      if(st.pin==='pts'&&drag<0&&!down.moved){path.push(s);}
+      if(freeing){const l=path[path.length-1];if(path.length===1||Math.hypot(s.x-l.x,s.y-l.y)>3)path.push(s);freeing=false;}
+    }else if(movingC&&!down.moved){center=s;}
+    movingC=false;drag=-1;draw();
+  }
+  down=null;
+});
+cv.addEventListener('pointercancel',()=>{down=null;drag=-1;freeing=false;movingC=false;});
+
+/* ---------- pannello ---------- */
+const $=id=>document.getElementById(id);
+function slider(par,k,label,min,max,step,fmt){
+  const r=document.createElement('div');r.className='row';
+  r.innerHTML=`<label>${label}</label><input type="range" min="${min}" max="${max}" step="${step}"><span class="v"></span>`;
+  const i=r.querySelector('input'),v=r.querySelector('.v');i.value=st[k];
+  const show=()=>v.textContent=fmt?fmt(st[k]):st[k];show();
+  i.addEventListener('input',()=>{st[k]=parseFloat(i.value);show();draw();});
+  par.appendChild(r);
+}
+function toggle(par,k,label){
+  const r=document.createElement('div');r.className='tg';r.innerHTML=`<span>${label}</span><button class="sw"></button>`;
+  const b=r.querySelector('.sw');const up=()=>b.classList.toggle('on',!!st[k]);up();
+  b.addEventListener('click',()=>{st[k]=!st[k];up();refresh();});
+  par.appendChild(r);
+}
+document.querySelectorAll('.seg[data-k]').forEach(sg=>{
+  const k=sg.dataset.k;const up=()=>sg.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.v===String(st[k])));up();
+  sg.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;st[k]=b.dataset.v;up();refresh();});
+  sg._up=up;
+});
+const sp=$('gSpiral'),rg=$('gRings'),gr=$('gGrow'),go=$('gOrient'),gs=$('gStyle'),ge=$('gExp');
+slider(sp,'turns','Giri',0.25,8,0.05,v=>v.toFixed(2));
+slider(sp,'r0','Raggio interno',1,300,1);
+slider(sp,'r1','Raggio esterno',20,500,1);
+slider(sp,'th0','Rotazione inizio',0,360,1,v=>v+'°');
+toggle(sp,'spLog','Spirale logaritmica (si apre)');
+toggle(sp,'cw','Verso orario');
+toggle(sp,'spAuto','Grandezza segue il raggio');
+slider(sp,'spK','Grandezza / raggio',0.05,1.2,0.01,v=>v.toFixed(2));
+slider(rg,'rings','Anelli',1,24,1);
+slider(rg,'rpm','Moduli per anello',3,72,1);
+slider(rg,'rr0','Raggio iniziale',5,300,1);
+slider(rg,'rstep','Passo anelli',0.3,2.5,0.01,v=>v.toFixed(2));
+slider(rg,'rfill','Grandezza moduli',0.3,2,0.01,v=>v.toFixed(2));
+slider(rg,'twist','Torsione per anello',-30,30,0.5,v=>v+'°');
+toggle(rg,'ralt','Sfalsa anelli alterni');
+toggle(rg,'rFollow','Moduli girati verso il centro');
+toggle(gr,'auto','Riempi in automatico');
+slider(gr,'gap','Distanza tra moduli',0.3,3,0.01,v=>v.toFixed(2));
+slider(gr,'n','Numero moduli (se manuale)',1,200,1);
+slider(gr,'s0','Dimensione in A',2,500,1);
+slider(gr,'s1','Dimensione in B',2,500,1);
+slider(gr,'g','Curva crescita',0.2,4,0.05,v=>v.toFixed(2));
+toggle(gr,'prop','Spaziatura in base alla grandezza');
+toggle(go,'follow','Segui la direzione del percorso');
+slider(go,'rot','Rotazione extra',-180,180,1,v=>v+'°');
+toggle(go,'flip','Specchia modulo');
+const os=document.createElement('div');os.className='seg';os.dataset.k='order';
+os.innerHTML='<button data-v="path">Ordine A→B</button><button data-v="big">Grandi davanti</button><button data-v="small">Piccoli davanti</button>';
+go.appendChild(os);
+os.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;st.order=b.dataset.v;os.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));draw();});
+os.querySelector('[data-v="path"]').classList.add('on');
+toggle(gs,'allEdges','Mostra spigoli tra cubi');
+toggle(gs,'fill','Copri le linee dietro');
+toggle(gs,'tones','Toni pieni (chiaro/medio/nero)');
+toggle(gs,'lightR','Lato scuro a sinistra');
+slider(gs,'lw','Spessore linea',0.3,10,0.1,v=>v.toFixed(1));
+toggle(gs,'fixedLw','Spessore uguale per tutti');
+toggle(gs,'guides','Mostra guide');
+toggle(ge,'crop','Ritaglia attorno al disegno');
+
+function refresh(){
+  $('pMod').classList.toggle('hide',st.mode!=='mod');
+  $('pComp').classList.toggle('hide',st.mode!=='comp');
+  $('gPath').classList.toggle('hide',st.cm!=='path');
+  sp.classList.toggle('hide',st.cm!=='spiral');
+  rg.classList.toggle('hide',st.cm!=='rings');
+  gr.classList.toggle('hide',st.cm==='rings');
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.m===st.mode));
+  draw();
+}
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{st.mode=t.dataset.m;refresh();}));
+$('bUndo').onclick=()=>{if(undo.length){vox=new Set(undo.pop());draw();}};
+$('bClear').onclick=()=>{pushUndo();vox=new Set();draw();};
+$('bPop').onclick=()=>{path.pop();draw();};
+$('bPathClr').onclick=()=>{path=[];draw();};
+
+/* ---------- preset e libreria ---------- */
+const PRE={
+  'Cubo':[[0,0,0]],
+  'Y tre bracci':[[0,0,0],[0,0,1],[1,0,0],[0,1,0]],
+  'Y lunga':[[0,0,0],[0,0,1],[0,0,2],[1,0,0],[2,0,0],[0,1,0],[0,2,0]],
+  'Angolo vuoto':[[0,0,0],[1,0,0],[0,1,0],[0,0,1],[1,1,0],[1,0,1],[0,1,1]],
+  'Cornice cava':[[0,0,0],[1,0,0],[2,0,0],[0,1,0],[0,2,0],[0,0,1],[0,0,2],[2,0,1],[2,0,2],[1,0,2],[0,2,1],[0,2,2],[0,1,2],[2,1,0],[2,2,0],[1,2,0]],
+  'Scala':[[0,0,0],[1,0,0],[1,0,1],[2,0,0],[2,0,1],[2,0,2]],
+  'Croce 3D':[[1,1,1],[0,1,1],[2,1,1],[1,0,1],[1,2,1],[1,1,0],[1,1,2]],
+  'Gradino a L':[[0,0,0],[1,0,0],[0,1,0],[0,0,1]]
+};
+const pr=$('presets');
+for(const n in PRE){const b=document.createElement('button');b.className='chip';b.textContent=n;b.onclick=()=>{pushUndo();vox=new Set(PRE[n].map(a=>K(...a)));draw();};pr.appendChild(b);}
+const LK='isocubo_lib_v1';
+function libGet(){try{return JSON.parse(localStorage.getItem(LK)||'[]');}catch(e){return [];}}
+function libSet(a){try{localStorage.setItem(LK,JSON.stringify(a));}catch(e){}}
+function libRender(){
+  const el=$('lib');el.innerHTML='';const a=libGet();
+  if(!a.length){el.innerHTML='<span class="note">Nessun modulo salvato.</span>';return;}
+  a.forEach((m,i)=>{const b=document.createElement('button');b.className='chip';b.innerHTML=`${m.name.replace(/</g,'&lt;')} <i>✕</i>`;
+    b.onclick=e=>{if(e.target.tagName==='I'){a.splice(i,1);libSet(a);libRender();return;}pushUndo();vox=new Set(m.vox);draw();};
+    el.appendChild(b);});
+}
+$('bSave').onclick=()=>{if(!vox.size)return;const inp=$('libName');const n=inp.value.trim()||('Modulo '+(libGet().length+1));inp.value='';const a=libGet();a.push({name:n,vox:[...vox]});libSet(a);libRender();};
+libRender();
+
+/* ---------- export ---------- */
+let lastUrl=null;
+function finish(c){
+  const S=c.width,x=c.getContext('2d'),d=x.getImageData(0,0,c.width,c.height),a=d.data;
+  let x0=1e9,y0=1e9,x1=-1,y1=-1;
+  for(let i=0,p=0;i<a.length;i+=4,p++){
+    const al=a[i+3];if(!al)continue;
+    const l=(a[i]*.299+a[i+1]*.587+a[i+2]*.114)/255,na=Math.round(al*(1-l));
+    a[i]=a[i+1]=a[i+2]=0;a[i+3]=na;
+    if(na>8){const px=p%c.width,py=(p/c.width)|0;if(px<x0)x0=px;if(px>x1)x1=px;if(py<y0)y0=py;if(py>y1)y1=py;}
+  }
+  x.putImageData(d,0,0);
+  let out=c;
+  if(st.crop&&x1>=0){const pad=Math.round(S*0.015);x0=Math.max(0,x0-pad);y0=Math.max(0,y0-pad);x1=Math.min(c.width-1,x1+pad);y1=Math.min(c.height-1,y1+pad);
+    out=document.createElement('canvas');out.width=x1-x0+1;out.height=y1-y0+1;out.getContext('2d').drawImage(c,-x0,-y0);}
+  out.toBlob(b=>{if(lastUrl)URL.revokeObjectURL(lastUrl);lastUrl=URL.createObjectURL(b);
+    $('ovImg').src=lastUrl;const dl=$('ovDl');dl.href=lastUrl;dl.download='isocubo-'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')+'.png';$('ov').classList.add('on');},'image/png');
+}
+$('bExpComp').onclick=()=>{
+  const S=+st.exp,c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d');const px=S/1000;
+  x.setTransform(px,0,0,px,0,0);renderComp(x,px);finish(c);
+};
+$('bExpMod').onclick=()=>{
+  const M=build(vox,st.allEdges);if(!M.faces.length)return;
+  const S=+st.exp,c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d');
+  const k=S*0.9/M.size;x.translate(S/2,S/2);x.scale(st.flip?-k:k,k);x.translate(-M.cx,-M.cy);
+  drawMod(x,M,{fill:st.fill,tones:st.tones,lw:st.lw*S/1000*2.5/k,seam:1.2/k});finish(c);
+};
+$('ovX').onclick=()=>$('ov').classList.remove('on');
+
+window.addEventListener('resize',resize);
+if(window.ResizeObserver)new ResizeObserver(resize).observe($('stage'));
+refresh();resize();
+window.__iso={st,setVox:a=>{vox=new Set(a.map(v=>K(...v)));draw();},refresh,get path(){return path}};
+})();
+</script>
+</body>
+</html>
